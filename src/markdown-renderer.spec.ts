@@ -1,5 +1,5 @@
-import { CommitInfo, Release } from "./interfaces";
-import MarkdownRenderer from "./markdown-renderer";
+import { CommitInfo, Release } from "./interfaces.js";
+import MarkdownRenderer from "./markdown-renderer.js";
 
 const UNRELEASED_TAG = "___unreleased___";
 

@@ -2,6 +2,6 @@
 
 "use strict";
 
-var cli = require("../lib/cli");
+import { run } from "../lib/cli.js";
 
-cli.run();
+run();

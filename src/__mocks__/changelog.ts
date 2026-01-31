@@ -1,4 +1,4 @@
-import { Configuration } from "../configuration";
+import { Configuration } from "../configuration.js";
 
 const Changelog = jest.requireActual("../changelog").default;
 

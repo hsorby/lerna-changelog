@@ -1,16 +1,31 @@
-import { highlight } from "cli-highlight";
-
-import Changelog from "./changelog";
-import { load as loadConfig } from "./configuration";
-import ConfigurationError from "./configuration-error";
 import chalk from "chalk";
+import cliHighlight from "cli-highlight";
+import yargs from "yargs";
+import { hideBin } from 'yargs/helpers';
+
+import Changelog from "./changelog.js";
+import { load as loadConfig } from "./configuration.js";
+import ConfigurationError from "./configuration-error.js";
+
+const { highlight } = cliHighlight;
 
 const NEXT_VERSION_DEFAULT = "Unreleased";
 
-export async function run() {
-  const yargs = require("yargs");
+interface CliArgs {
+  from?: string;
+  to?: string;
+  "tag-from"?: string;
+  "tag-to"?: string;
+  "next-version": string;
+  "next-version-from-metadata": boolean;
+  repo?: string;
+}
 
-  const argv = yargs
+export async function run() {
+
+  const instance = yargs(hideBin(process.argv));
+  const width = Math.min(100, instance.terminalWidth());
+  const argv = await instance
     .usage("lerna-changelog [options]")
     .options({
       from: {
@@ -57,12 +72,13 @@ export async function run() {
       "create a changelog for the changes in all tags within the given range"
     )
     .epilog("For more information, see https://github.com/lerna/lerna-changelog")
-    .wrap(Math.min(100, yargs.terminalWidth()))
-    .parse();
+    // @ts-ignore
+    .wrap(width)
+    .parse() as CliArgs;
 
   let options = {
-    tagFrom: argv["from"] || argv["tag-from"],
-    tagTo: argv["to"] || argv["tag-to"],
+    tagFrom: argv.from || argv["tag-from"] || undefined,
+    tagTo: argv.to || argv["tag-to"] || undefined,
   };
 
   try {

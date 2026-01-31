@@ -1,4 +1,4 @@
-import findPullRequestId from "./find-pull-request-id";
+import findPullRequestId from "./find-pull-request-id.js";
 
 describe("findPullRequestId", function () {
   it("finds the id in a GitHub merge commit", function () {

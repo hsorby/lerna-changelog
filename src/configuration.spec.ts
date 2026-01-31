@@ -1,26 +1,26 @@
-const os = require("os");
-const fs = require("fs-extra");
-const path = require("path");
+import * as os from "os";
+import * as fs from "fs";
+import * as path from "path";
 
-import { findRepoFromPkg, fromPath } from "./configuration";
-import ConfigurationError from "./configuration-error";
+import { findRepoFromPkg, fromPath } from "./configuration.js";
+import ConfigurationError from "./configuration-error.js";
 
 describe("Configuration", function () {
   describe("fromPath", function () {
     const tmpDir = `${os.tmpdir()}/changelog-test`;
 
     beforeEach(function () {
-      fs.ensureDirSync(tmpDir);
+      fs.mkdirSync(tmpDir);
     });
 
     afterEach(function () {
-      fs.removeSync(tmpDir);
+      fs.rmdirSync(tmpDir);
     });
 
     it("reads the configuration from 'lerna.json'", function () {
-      fs.writeJsonSync(path.join(tmpDir, "lerna.json"), {
+      fs.writeFileSync(path.join(tmpDir, "lerna.json"), JSON.stringify({
         changelog: { repo: "foo/bar", nextVersion: "next" },
-      });
+      }));
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("next");
@@ -28,9 +28,9 @@ describe("Configuration", function () {
     });
 
     it("reads the configuration from 'package.json'", function () {
-      fs.writeJsonSync(path.join(tmpDir, "package.json"), {
+      fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
         changelog: { repo: "foo/bar", nextVersion: "next" },
-      });
+      }));
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("next");
@@ -38,15 +38,15 @@ describe("Configuration", function () {
     });
 
     it("prefers 'package.json' over 'lerna.json'", function () {
-      fs.writeJsonSync(path.join(tmpDir, "lerna.json"), {
+      fs.writeFileSync(path.join(tmpDir, "lerna.json"), JSON.stringify({
         version: "1.0.0-lerna.0",
         changelog: { repo: "foo/lerna", nextVersionFromMetadata: true },
-      });
+      }));
 
-      fs.writeJsonSync(path.join(tmpDir, "package.json"), {
+      fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
         version: "1.0.0-package.0",
         changelog: { repo: "foo/package", nextVersionFromMetadata: true },
-      });
+      }));
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("v1.0.0-package.0");

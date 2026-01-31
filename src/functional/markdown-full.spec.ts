@@ -1,10 +1,10 @@
-import { CommitListItem } from "../git";
+import { CommitListItem } from "../git.js";
 
-jest.mock("../../src/progress-bar");
-jest.mock("../../src/changelog");
-jest.mock("../../src/github-api");
+jest.mock("../../src/progress-bar.js");
+jest.mock("../../src/changelog.js");
+jest.mock("../../src/github-api.js");
 jest.mock("../git");
-jest.mock("../fetch");
+jest.mock("../fetch.js");
 
 const listOfCommits: CommitListItem[] = [
   {

@@ -12,7 +12,8 @@
   },
   "license": "MIT",
   "author": "Bo Borgerson <gigabo@gmail.com>",
-  "main": "index.js",
+  "type": "module",
+  "main": "lib/index.js",
   "bin": "bin/cli.js",
   "repository": {
     "type": "git",
@@ -43,8 +44,12 @@
   },
   "devDependencies": {
     "@release-it-plugins/lerna-changelog": "^8.0.1",
+    "@types/hosted-git-info": "^3.0.5",
     "@types/jest": "30.0.0",
+    "@types/make-fetch-happen": "^10.0.4",
     "@types/node": "25.1.0",
+    "@types/progress": "^2.0.7",
+    "@types/yargs": "^17.0.35",
     "@typescript-eslint/eslint-plugin": "8.54.0",
     "@typescript-eslint/parser": "8.54.0",
     "eslint": "9.39.2",

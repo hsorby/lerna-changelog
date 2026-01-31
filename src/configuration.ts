@@ -1,10 +1,9 @@
-const fs = require("fs");
-const path = require("path");
-const execa = require("execa");
-const hostedGitInfo = require("hosted-git-info");
+import fs from "fs";
+import path from "path";
+import hostedGitInfo from "hosted-git-info";
 
-import ConfigurationError from "./configuration-error";
-import { getRootPath } from "./git";
+import ConfigurationError from "./configuration-error.js";
+import { getRootPath } from "./git.js";
 
 export interface Configuration {
   repo: string;
@@ -93,14 +92,14 @@ export function fromPath(rootPath: string, options: ConfigLoaderOptions = {}): C
 function fromLernaConfig(rootPath: string): Partial<Configuration> | undefined {
   const lernaPath = path.join(rootPath, "lerna.json");
   if (fs.existsSync(lernaPath)) {
-    return JSON.parse(fs.readFileSync(lernaPath)).changelog;
+    return JSON.parse(fs.readFileSync(lernaPath, 'utf8')).changelog;
   }
 }
 
 function fromPackageConfig(rootPath: string): Partial<Configuration> | undefined {
   const pkgPath = path.join(rootPath, "package.json");
   if (fs.existsSync(pkgPath)) {
-    return JSON.parse(fs.readFileSync(pkgPath)).changelog;
+    return JSON.parse(fs.readFileSync(pkgPath, 'utf8')).changelog;
   }
 }
 
@@ -110,7 +109,7 @@ function findRepo(rootPath: string): string | undefined {
     return;
   }
 
-  const pkg = JSON.parse(fs.readFileSync(pkgPath));
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
   if (!pkg.repository) {
     return;
   }
@@ -122,8 +121,8 @@ function findNextVersion(rootPath: string): string | undefined {
   const pkgPath = path.join(rootPath, "package.json");
   const lernaPath = path.join(rootPath, "lerna.json");
 
-  const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath)) : {};
-  const lerna = fs.existsSync(lernaPath) ? JSON.parse(fs.readFileSync(lernaPath)) : {};
+  const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : {};
+  const lerna = fs.existsSync(lernaPath) ? JSON.parse(fs.readFileSync(lernaPath, 'utf8')) : {};
 
   return pkg.version ? `v${pkg.version}` : lerna.version ? `v${lerna.version}` : undefined;
 }

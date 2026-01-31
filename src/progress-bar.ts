@@ -1,6 +1,5 @@
 import chalk from "chalk";
-
-const ProgressBar = require("progress");
+import ProgressBar from "progress";
 
 class ProgressBarController {
   private bar: any;

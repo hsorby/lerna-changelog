@@ -1,7 +1,7 @@
-const path = require("path");
+import path from "path";
 
-import ConfigurationError from "./configuration-error";
-import fetch from "./fetch";
+import ConfigurationError from "./configuration-error.js";
+import fetch from "./fetch.js";
 
 export interface GitHubUserResponse {
   login: string;
@@ -60,6 +60,14 @@ export default class GithubAPI {
       headers: {
         Authorization: `token ${this.auth}`,
       },
+      method: "GET",
+      body: null,
+      redirect: "follow",
+      follow: 20,
+      timeout: 0,
+      compress: true,
+      size: 0,
+      agent: "lerna-changelog",
     });
     const parsedResponse = await res.json();
     if (res.ok) {
