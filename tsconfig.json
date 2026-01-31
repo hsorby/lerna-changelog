@@ -1,12 +1,15 @@
 {
   "compilerOptions": {
     "outDir": "lib",
-    "target": "es2015",
-    "module": "CommonJS",
-    "removeComments": true,
+    "target": "ES2022",           // Modern JS output
+    "module": "NodeNext",         // Handles modern ESM/CJS interop
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true,      // Essential for importing CJS into ESM and vice-versa
+    "skipLibCheck": true,         // Prevents errors from poorly typed node_modules
     "allowJs": true,
     "strict": true,
-    "lib": ["es2015"]
+    "removeComments": true,
+    "lib": ["ES2022"]
   },
   "include": ["src/**/*.ts"]
 }

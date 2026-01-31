@@ -54,7 +54,7 @@ describe("Configuration", function () {
     });
 
     it("throws ConfigurationError if neither 'package.json' nor 'lerna.json' exist", function () {
-      expect(() => fromPath(tmpDir)).toThrowError(ConfigurationError);
+      expect(() => fromPath(tmpDir)).toThrow(ConfigurationError);
     });
 
     it("uses passed in `repo` option", function () {

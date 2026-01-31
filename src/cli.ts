@@ -1,10 +1,9 @@
-import chalk = require("chalk");
-
 import { highlight } from "cli-highlight";
 
 import Changelog from "./changelog";
 import { load as loadConfig } from "./configuration";
 import ConfigurationError from "./configuration-error";
+import chalk from "chalk";
 
 const NEXT_VERSION_DEFAULT = "Unreleased";
 
