@@ -43,10 +43,10 @@ export default class MarkdownRenderer {
       markdown += `\n\n#### ${category.name}\n`;
 
       markdown += this.renderMergedPullRequests(category.pullRequests);
+    }
 
-      if (release.contributors?.length) {
-        markdown += `\n\n${this.renderContributorList(release.contributors)}`;
-      }
+    if (release.contributors?.length) {
+      markdown += `\n\n${this.renderContributorList(release.contributors)}`;
     }
 
     return markdown;

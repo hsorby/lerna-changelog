@@ -1,0 +1,44 @@
+name: Publish package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    if: github.repository == 'hsorby/lerna-changelog'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # for --provenance
+      contents: read # for actions/checkout
+    steps:
+      - uses: actions/checkout@v5
+      
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Enable corepack
+        run: corepack enable yarn
+
+      - name: Enable yarn cache
+        uses: actions/setup-node@v6
+        with:
+          cache: 'yarn'
+
+      - run: yarn
+
+      - run: yarn build
+
+      - name: Determine npm tag
+        id: determine_tag
+        run: |
+          # If the git tag (e.g., v1.0.0-beta.0) contains a hyphen, it's a prerelease.
+          if [[ "${{ github.ref_name }}" == *-* ]]; then
+            echo "tag=next" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
+
+      - run: npm publish --provenance --ignore-scripts --tag ${{ steps.determine_tag.outputs.tag }}

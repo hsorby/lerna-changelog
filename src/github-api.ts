@@ -83,6 +83,8 @@ export default class GithubAPI {
                 number
                 title
                 url
+                baseRefName
+                headRefName
               }
             }
           }
@@ -95,15 +97,14 @@ export default class GithubAPI {
     const response: any = await this._post(GRAPHQL_URL, query);
 
     const commitData = response.data.repository.object;
-    if (commitData.associatedPullRequests.nodes.length > 1) {
-      console.log(`Multiple PR found for commit ${sha}.`);
-    }
     const pr = commitData.associatedPullRequests.nodes[0];
 
     return {
       isMergeCommit: commitData.parents.totalCount > 1,
       pr: pr || null,
       merged: pr ? pr.merged : false,
+      baseRefName: pr ? pr.baseRefName : null,
+      headRefName: pr ? pr.headRefName : null,
     };
   }
 
@@ -123,7 +124,6 @@ export default class GithubAPI {
     }`,
     };
     const response: any = await this._post(GRAPHQL_URL, query);
-
     return response.data.repository.pullRequest.closingIssuesReferences.nodes;
   }
 

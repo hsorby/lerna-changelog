@@ -14,6 +14,7 @@ export interface Configuration {
   nextVersion: string | undefined;
   nextVersionFromMetadata?: boolean;
   wildcardLabel?: string;
+  baseBranchNames: string[];
 }
 
 export interface ConfigLoaderOptions {
@@ -86,6 +87,7 @@ export function fromPath(rootPath: string, options: ConfigLoaderOptions = {}): C
     ignoreCommitters,
     cacheDir,
     wildcardLabel,
+    baseBranchNames: config.baseBranchNames || ["main"],
   };
 }
 

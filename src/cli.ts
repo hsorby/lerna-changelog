@@ -20,6 +20,7 @@ interface CliArgs {
   "next-version-from-metadata": boolean;
   repo?: string;
   quiet?: boolean;
+  "base-branch-names"?: string[];
 }
 
 export async function run() {
@@ -61,6 +62,11 @@ export async function run() {
         type: "string",
         desc: "`<USER|ORG>/<PROJECT>` of the GitHub project",
         defaultDescription: "inferred from the `package.json` file",
+      },
+      "base-branch-names": {
+        type: "array",
+        desc: "List of base branch names to consider when looking for merged PRs",
+        default: ["main"],
       },
       quiet: {
         alias: "q",

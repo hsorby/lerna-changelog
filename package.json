@@ -69,7 +69,7 @@
   "changelog": {
     "repo": "lerna/lerna-changelog",
     "labels": {
-      "unspecified": ":grey_question: Not Specified",
+      "uncategorized": ":grey_question: Not Specified",
       "breaking": ":boom: Breaking Change",
       "enhancement": ":rocket: Enhancement",
       "bug": ":bug: Bug Fix",

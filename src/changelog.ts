@@ -20,7 +20,7 @@ export default class Changelog {
   private readonly config: Configuration;
   private github: GithubAPI;
   private renderer: MarkdownRenderer;
-
+  private prCache = new Map<number, Promise<{ pr: any; linkedIssues: any[] }>>();
   constructor(config: Configuration) {
     this.config = config;
     this.github = new GithubAPI(this.config);
@@ -50,34 +50,13 @@ export default class Changelog {
     await this.downloadIssueData(commitInfos);
     const pullRequestInfo = this.extractPullRequestInfo(commitInfos);
 
-    this.assingToCategories(pullRequestInfo, commitInfos);
+    this.assignToCategories(pullRequestInfo, commitInfos);
 
     return pullRequestInfo;
   }
 
-  private async getCommitInfos(from: string, to: string): Promise<CommitInfo[]> {
-    // Step 1: Get list of commits between tag A and B (local)
-    console.log(`Getting commits from ${from} to ${to}...`);
-    const commits = this.getListOfCommits(from, to);
-
-    // Step 2: Find tagged commits (local)
-    const commitInfos = this.toCommitInfos(commits);
-
-    // Step 3: Download PR data (remote)
-    await this.downloadIssueData(commitInfos);
-
-    // Step 4: Fill in categories from remote labels (local)
-    this.fillInCategories(commitInfos);
-
-    // Step 5: Fill in packages (local)
-    await this.fillInPackages(commitInfos);
-
-    return commitInfos;
-  }
-
   private async listReleases(from: string, to: string, quiet?: boolean): Promise<Release[]> {
     // Get all info about commits in a certain tags range
-    // const commits = await this.getCommitInfos(from, to);
     const pullReqests = await this.getPullRequestsInfo(from, to, quiet);
 
     // Step 6: Group commits by release (local)
@@ -164,36 +143,66 @@ export default class Changelog {
   }
 
   private async downloadIssueData(commitInfos: CommitInfo[]) {
-    progressBar.init("Downloading issue information…", commitInfos.length);
+    progressBar.init("Downloading issue and PR data from GitHub…", commitInfos.length);
     await pMap(
       commitInfos,
       async (commitInfo: CommitInfo) => {
-        if (commitInfo.issueNumber) {
-          commitInfo.githubIssue = await this.github.getIssueData(this.config.repo, commitInfo.issueNumber);
-        }
+        // 1. Determine PR Number
+        let prNumber = commitInfo.issueNumber ? parseInt(commitInfo.issueNumber as string, 10) : null;
+        let foundPr: any = null;
 
-        if (!commitInfo.issueNumber) {
+        if (!prNumber) {
           const { pr } = await this.github.getPRForCommit(this.config.repo, commitInfo.commitSHA);
-          if (pr && pr.merged && pr.number) {
-            commitInfo.githubPr = pr; // Use this as the base for labels/categories
+          if (pr && pr.merged && pr.number && this.config.baseBranchNames.includes(pr.baseRefName)) {
+            foundPr = pr;
+            prNumber = pr.number;
           }
         }
 
-        if (!commitInfo.issueNumber && !commitInfo.githubPr) {
+        if (prNumber) {
+          // 2. Initialize Cache if missing
+          if (!this.prCache.has(prNumber)) {
+            if (!foundPr) {
+              const { pr } = await this.github.getPRForCommit(this.config.repo, commitInfo.commitSHA);
+              if (pr && pr.merged && pr.number && this.config.baseBranchNames.includes(pr.baseRefName)) {
+                foundPr = pr;
+              }
+            }
+            this.prCache.set(
+              prNumber,
+              (async () => {
+                const linked = await this.github.getLinkedIssues(this.config.repo, prNumber!);
+                return { pr: foundPr, linkedIssues: linked };
+              })()
+            );
+          }
+
+          // 3. Await the cached data
+          const cachedData = await this.prCache.get(prNumber)!;
+
+          // 4. "Late-Binding".
+          // If the cache's PR object is missing but we just found it in this iteration,
+          // update the cache so future commits get the full object.
+          if (!cachedData.pr && foundPr) {
+            cachedData.pr = foundPr;
+          }
+
+          // 5. Assign to this specific commitInfo instance.
+          commitInfo.githubPr = cachedData.pr;
+          commitInfo.linkedIssues = cachedData.linkedIssues;
+
+          // Fetch Issue data if this specific commit was linked via #number.
+          if (commitInfo.issueNumber && !commitInfo.githubIssue) {
+            commitInfo.githubIssue = await this.github.getIssueData(this.config.repo, commitInfo.issueNumber);
+          }
           progressBar.tick();
           return;
         }
-        let linkedIssues: any[] = [];
-        if (commitInfo.githubPr && commitInfo.githubPr.number) {
-          linkedIssues = await this.github.getLinkedIssues(this.config.repo, commitInfo.githubPr.number);
-        }
 
-        if (commitInfo.issueNumber) {
-          linkedIssues.push(
-            ...(await this.github.getLinkedIssues(this.config.repo, parseInt(commitInfo.issueNumber as string, 10)))
-          );
+        // Fallback for commits with no PR association
+        if (commitInfo.issueNumber && !commitInfo.githubIssue) {
+          commitInfo.githubIssue = await this.github.getIssueData(this.config.repo, commitInfo.issueNumber);
         }
-        commitInfo.linkedIssues = linkedIssues;
         progressBar.tick();
       },
       { concurrency: 5 }
@@ -273,14 +282,48 @@ export default class Changelog {
     return pullRequests;
   }
 
-  private assingToCategories(pullRequestInfo: any[], commitInfos: CommitInfo[]) {
+  private assignToCategories(pullRequests: any[], commitInfos: CommitInfo[]) {
+    for (const pr of pullRequests) {
+      // 1. Gather all linked issues from all commits associated with this PR.
+      const linkedIssues = commitInfos.filter(c => c.githubPr?.number === pr.number).flatMap(c => c.linkedIssues || []);
+
+      // 2. Extract unique category names from those issues.
+      const categories = new Set<string>();
+
+      for (const issue of linkedIssues) {
+        const type = issue.issueType?.name?.toLowerCase();
+        const category = type ? this.config.labels[type] : null;
+
+        if (category) {
+          categories.add(category);
+        }
+      }
+
+      // 3. Fallback to 'uncategorized' only if no categories were found.
+      if (categories.size === 0) {
+        const fallback = this.config.labels["uncategorized"];
+        if (fallback) categories.add(fallback);
+      }
+
+      // 4. Assign the final array to the PR.
+      pr.categories = Array.from(categories);
+    }
+  }
+
+  private assignToCategoriesOld(pullRequestInfo: any[], commitInfos: CommitInfo[]) {
     for (const pr of pullRequestInfo) {
       pr.categories = [];
       const relatedCommits = commitInfos.filter(c => c.githubPr && c.githubPr.number === pr.number);
       if (relatedCommits.length > 0) {
         for (const commit of relatedCommits) {
+          if (commit.linkedIssues?.length === 0) {
+            const category = this.config.labels["uncategorized"];
+            if (category && !pr.categories.includes(category)) {
+              pr.categories.push(category);
+            }
+          }
           for (const linkedIssue of commit.linkedIssues || []) {
-            let issueType = linkedIssue.issueType?.name.toLowerCase() || "unspecified";
+            let issueType = linkedIssue.issueType?.name.toLowerCase() || "uncategorized";
             if (issueType) {
               const category = this.config.labels[issueType];
               if (category && !pr.categories.includes(category)) {
