@@ -1,7 +1,7 @@
 import chalk from "chalk";
 import cliHighlight from "cli-highlight";
 import yargs from "yargs";
-import { hideBin } from 'yargs/helpers';
+import { hideBin } from "yargs/helpers";
 
 import Changelog from "./changelog.js";
 import { load as loadConfig } from "./configuration.js";
@@ -19,13 +19,13 @@ interface CliArgs {
   "next-version": string;
   "next-version-from-metadata": boolean;
   repo?: string;
+  quiet?: boolean;
 }
 
 export async function run() {
-
   const instance = yargs(hideBin(process.argv));
   const width = Math.min(100, instance.terminalWidth());
-  const argv = await instance
+  const argv = (await instance
     .usage("lerna-changelog [options]")
     .options({
       from: {
@@ -62,6 +62,12 @@ export async function run() {
         desc: "`<USER|ORG>/<PROJECT>` of the GitHub project",
         defaultDescription: "inferred from the `package.json` file",
       },
+      quiet: {
+        alias: "q",
+        type: "boolean",
+        desc: "Suppress output",
+        default: false,
+      },
     })
     .example(
       "lerna-changelog",
@@ -72,13 +78,13 @@ export async function run() {
       "create a changelog for the changes in all tags within the given range"
     )
     .epilog("For more information, see https://github.com/lerna/lerna-changelog")
-    // @ts-ignore
     .wrap(width)
-    .parse() as CliArgs;
+    .parse()) as CliArgs;
 
   let options = {
     tagFrom: argv.from || argv["tag-from"] || undefined,
     tagTo: argv.to || argv["tag-to"] || undefined,
+    quiet: argv.quiet,
   };
 
   try {
@@ -91,7 +97,22 @@ export async function run() {
       config.nextVersion = argv["next-version"];
     }
 
+    if (!argv.quiet) {
+      console.log("");
+      console.log(chalk.green("Config:"));
+      console.log("");
+      console.log(config);
+      console.log("");
+      console.log(chalk.green("Processing:"));
+      console.log("");
+    }
+
     let result = await new Changelog(config).createMarkdown(options);
+    if (!argv.quiet) {
+      console.log("");
+      console.log(chalk.green("Generated changelog:"));
+      console.log("");
+    }
 
     let highlighted = highlight(result, {
       language: "Markdown",

@@ -4,7 +4,7 @@ import progressBar from "./progress-bar.js";
 import { Configuration } from "./configuration.js";
 import findPullRequestId from "./find-pull-request-id.js";
 import * as Git from "./git.js";
-import GithubAPI, { GitHubUserResponse } from "./github-api.js";
+import GithubAPI, { GitHubAuthorResponse, GitHubUserResponse } from "./github-api.js";
 import { CommitInfo, Release } from "./interfaces.js";
 import MarkdownRenderer from "./markdown-renderer.js";
 
@@ -13,6 +13,7 @@ const UNRELEASED_TAG = "___unreleased___";
 interface Options {
   tagFrom?: string;
   tagTo?: string;
+  quiet?: boolean;
 }
 
 export default class Changelog {
@@ -26,7 +27,7 @@ export default class Changelog {
     this.renderer = new MarkdownRenderer({
       categories: Object.keys(this.config.labels).map(key => this.config.labels[key]),
       baseIssueUrl: this.github.getBaseIssueUrl(this.config.repo),
-      unreleasedName: this.config.nextVersion || "Unreleased",
+      unreleasedName: this.config.nextVersion || "Unofficial Release",
     });
   }
 
@@ -34,13 +35,29 @@ export default class Changelog {
     const from = options.tagFrom || (await Git.lastTag());
     const to = options.tagTo || "HEAD";
 
-    const releases = await this.listReleases(from, to);
+    const releases = await this.listReleases(from, to, options.quiet);
 
     return this.renderer.renderMarkdown(releases);
   }
 
+  private async getPullRequestsInfo(from: string, to: string, quiet?: boolean): Promise<any[]> {
+    // Currently not used, but kept for future use.
+    if (!quiet) {
+      console.log(`Getting commits from ${from} to ${to}...`);
+    }
+    const commits = this.getListOfCommits(from, to);
+    const commitInfos = this.toCommitInfos(commits);
+    await this.downloadIssueData(commitInfos);
+    const pullRequestInfo = this.extractPullRequestInfo(commitInfos);
+
+    this.assingToCategories(pullRequestInfo, commitInfos);
+
+    return pullRequestInfo;
+  }
+
   private async getCommitInfos(from: string, to: string): Promise<CommitInfo[]> {
     // Step 1: Get list of commits between tag A and B (local)
+    console.log(`Getting commits from ${from} to ${to}...`);
     const commits = this.getListOfCommits(from, to);
 
     // Step 2: Find tagged commits (local)
@@ -58,12 +75,13 @@ export default class Changelog {
     return commitInfos;
   }
 
-  private async listReleases(from: string, to: string): Promise<Release[]> {
+  private async listReleases(from: string, to: string, quiet?: boolean): Promise<Release[]> {
     // Get all info about commits in a certain tags range
-    const commits = await this.getCommitInfos(from, to);
+    // const commits = await this.getCommitInfos(from, to);
+    const pullReqests = await this.getPullRequestsInfo(from, to, quiet);
 
     // Step 6: Group commits by release (local)
-    let releases = this.groupByRelease(commits);
+    let releases = this.groupByRelease(pullReqests, to);
 
     // Step 7: Compile list of committers in release (local + remote)
     await this.fillInContributors(releases);
@@ -98,17 +116,13 @@ export default class Changelog {
     return Git.listCommits(from, to);
   }
 
-  private async getCommitters(commits: CommitInfo[]): Promise<GitHubUserResponse[]> {
-    const committers: { [id: string]: GitHubUserResponse } = {};
+  private async getCommitters(pullRequests: any[]): Promise<GitHubAuthorResponse[]> {
+    const committers: { [id: string]: GitHubAuthorResponse } = {};
 
-    for (const commit of commits) {
-      const issue = commit.githubIssue;
-      const login = issue && issue.user && issue.user.login;
-      // If a list of `ignoreCommitters` is provided in the lerna.json config
-      // check if the current committer should be kept or not.
-      const shouldKeepCommiter = login && !this.ignoreCommitter(login);
-      if (login && shouldKeepCommiter && !committers[login]) {
-        committers[login] = await this.github.getUserData(login);
+    for (const pr of pullRequests) {
+      const login = pr.author?.login;
+      if (login && !this.ignoreCommitter(login) && !committers[login]) {
+        committers[login] = pr.author;
       }
     }
 
@@ -158,6 +172,28 @@ export default class Changelog {
           commitInfo.githubIssue = await this.github.getIssueData(this.config.repo, commitInfo.issueNumber);
         }
 
+        if (!commitInfo.issueNumber) {
+          const { pr } = await this.github.getPRForCommit(this.config.repo, commitInfo.commitSHA);
+          if (pr && pr.merged && pr.number) {
+            commitInfo.githubPr = pr; // Use this as the base for labels/categories
+          }
+        }
+
+        if (!commitInfo.issueNumber && !commitInfo.githubPr) {
+          progressBar.tick();
+          return;
+        }
+        let linkedIssues: any[] = [];
+        if (commitInfo.githubPr && commitInfo.githubPr.number) {
+          linkedIssues = await this.github.getLinkedIssues(this.config.repo, commitInfo.githubPr.number);
+        }
+
+        if (commitInfo.issueNumber) {
+          linkedIssues.push(
+            ...(await this.github.getLinkedIssues(this.config.repo, parseInt(commitInfo.issueNumber as string, 10)))
+          );
+        }
+        commitInfo.linkedIssues = linkedIssues;
         progressBar.tick();
       },
       { concurrency: 5 }
@@ -165,7 +201,30 @@ export default class Changelog {
     progressBar.terminate();
   }
 
-  private groupByRelease(commits: CommitInfo[]): Release[] {
+  private groupByRelease(pullRequests: any[], to: string): Release[] {
+    // Analyze the commits and group them by category.
+    // This is useful to generate multiple release logs in case there are
+    // multiple release tags.
+    let releaseMap: { [id: string]: Release } = {};
+    const tagDate = Git.getTagDate(to);
+
+    let currentReleaseCategory = to === "HEAD" ? UNRELEASED_TAG : to;
+    for (const pr of pullRequests) {
+      if (pr.categories && pr.categories.length === 0) {
+        continue;
+      }
+
+      if (!releaseMap[currentReleaseCategory]) {
+        releaseMap[currentReleaseCategory] = { name: currentReleaseCategory, date: tagDate, pullRequests: [] };
+      }
+
+      releaseMap[currentReleaseCategory].pullRequests.push(pr);
+    }
+
+    return Object.keys(releaseMap).map(tag => releaseMap[tag]);
+  }
+
+  private groupByReleaseCommit(commits: CommitInfo[]): Release[] {
     // Analyze the commits and group them by tag.
     // This is useful to generate multiple release logs in case there are
     // multiple release tags.
@@ -185,10 +244,10 @@ export default class Changelog {
       for (const currentTag of currentTags) {
         if (!releaseMap[currentTag]) {
           let date = currentTag === UNRELEASED_TAG ? this.getToday() : commit.date;
-          releaseMap[currentTag] = { name: currentTag, date, commits: [] };
+          // releaseMap[currentTag] = { name: currentTag, date, commits: [] };
         }
 
-        releaseMap[currentTag].commits.push(commit);
+        // releaseMap[currentTag].pullRequests.push(commit);
       }
     }
 
@@ -200,17 +259,79 @@ export default class Changelog {
     return date.slice(0, date.indexOf("T"));
   }
 
+  private extractPullRequestInfo(commits: CommitInfo[]): any[] {
+    const pullRequests: any[] = [];
+
+    const seenPullRequestNumbers: Set<number> = new Set();
+    for (const commit of commits) {
+      if (commit.githubPr && commit.githubPr.number && !seenPullRequestNumbers.has(commit.githubPr.number)) {
+        pullRequests.push(commit.githubPr);
+        seenPullRequestNumbers.add(commit.githubPr.number);
+      }
+    }
+
+    return pullRequests;
+  }
+
+  private assingToCategories(pullRequestInfo: any[], commitInfos: CommitInfo[]) {
+    for (const pr of pullRequestInfo) {
+      pr.categories = [];
+      const relatedCommits = commitInfos.filter(c => c.githubPr && c.githubPr.number === pr.number);
+      if (relatedCommits.length > 0) {
+        for (const commit of relatedCommits) {
+          for (const linkedIssue of commit.linkedIssues || []) {
+            let issueType = linkedIssue.issueType?.name.toLowerCase() || "unspecified";
+            if (issueType) {
+              const category = this.config.labels[issueType];
+              if (category && !pr.categories.includes(category)) {
+                pr.categories.push(category);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
   private fillInCategories(commits: CommitInfo[]) {
     for (const commit of commits) {
-      if (!commit.githubIssue || !commit.githubIssue.labels) continue;
-
-      const labels = commit.githubIssue.labels.map(label => label.name.toLowerCase());
+      if (
+        (!commit.githubIssue || !commit.githubIssue.labels) &&
+        (!commit.linkedIssues || commit.linkedIssues?.length === 0)
+      ) {
+        console.warn(
+          `No labels or types found on anything associated with commit #${commit.commitSHA}. Skipping categorization.`
+        );
+        continue;
+      }
+      let labels: string[] = [];
+      if (commit.githubIssue && commit.githubIssue.labels) {
+        labels = commit.githubIssue.labels.map(label => label.name.toLowerCase());
+      }
+      if (commit.linkedIssues && commit.linkedIssues.length > 0) {
+        commit.linkedIssues.forEach(issue => {
+          let issueType = issue.issueType.name.toLowerCase();
+          if (issueType && labels.indexOf(issueType) === -1) {
+            labels.push(issueType);
+          }
+        });
+      }
 
       if (this.config.wildcardLabel) {
         // check whether the commit has any of the labels from the learna.json config.
         // If not, label this commit with the provided label
 
         let foundLabel = Object.keys(this.config.labels).some(label => labels.indexOf(label.toLowerCase()) !== -1);
+        commit.linkedIssues?.forEach(issue => {
+          // issue.labels.nodes.forEach(l => labels.add(l.name.toLowerCase()));
+          let issueLabels = issue.labels.map(label => label.name.toLowerCase());
+          let issueHasLabel = Object.keys(this.config.labels).some(
+            label => issueLabels.indexOf(label.toLowerCase()) !== -1
+          );
+          if (issueHasLabel) {
+            foundLabel = true;
+          }
+        });
 
         if (!foundLabel) {
           labels.push(this.config.wildcardLabel);
@@ -243,7 +364,7 @@ export default class Changelog {
 
   private async fillInContributors(releases: Release[]) {
     for (const release of releases) {
-      release.contributors = await this.getCommitters(release.commits);
+      release.contributors = await this.getCommitters(release.pullRequests);
     }
   }
 }

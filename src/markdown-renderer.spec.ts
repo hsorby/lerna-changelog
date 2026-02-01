@@ -118,13 +118,15 @@ describe("MarkdownRenderer", () => {
       const user1 = {
         login: "hzoo",
         name: "",
-        html_url: "https://github.com/hzoo",
+        avatarUrl: "http://avatar.com/hzoo",
+        url: "https://github.com/hzoo",
       };
 
       const user2 = {
         login: "Turbo87",
         name: "Tobias Bieniek",
-        html_url: "https://github.com/Turbo87",
+        avatarUrl: "http://avatar.com/turbo87",
+        url: "https://github.com/Turbo87",
       };
 
       const result = renderer().renderContributorList([user1, user2]);
@@ -137,18 +139,18 @@ describe("MarkdownRenderer", () => {
     it(`renders GitHub user without name`, () => {
       const result = renderer().renderContributor({
         login: "foo",
-        name: "",
-        html_url: "http://github.com/foo",
+        avatarUrl: "http://avatar.com/foo",
+        url: "http://github.com/foo",
       });
 
-      expect(result).toEqual("[@foo](http://github.com/foo)");
+      expect(result).toEqual("![avatar](http://avatar.com/foo) [@foo](http://github.com/foo)");
     });
 
     it(`renders GitHub user with name`, () => {
       const result = renderer().renderContributor({
         login: "foo",
-        name: "Foo Bar",
-        html_url: "http://github.com/foo",
+        avatarUrl: "http://avatar.com/foo",
+        url: "http://github.com/foo",
       });
 
       expect(result).toEqual("Foo Bar ([@foo](http://github.com/foo))");
@@ -185,13 +187,22 @@ describe("MarkdownRenderer", () => {
       const release: Release = {
         name: UNRELEASED_TAG,
         date: getToday(),
-        commits: [
-          {
-            ...BASIC_COMMIT,
-            categories: [":rocket: New Feature"],
-          },
+        pullRequests: [
+          // {
+            // categories: [":rocket: New Feature"],
+          // },
         ],
       };
+      // const release: Release = {
+      //   name: UNRELEASED_TAG,
+      //   date: getToday(),
+      //   commits: [
+      //     {
+      //       ...BASIC_COMMIT,
+      //       categories: [":rocket: New Feature"],
+      //     },
+      //   ],
+      // };
       const options = {
         categories: [":rocket: New Feature"],
       };
@@ -203,11 +214,11 @@ describe("MarkdownRenderer", () => {
       const release: Release = {
         name: UNRELEASED_TAG,
         date: getToday(),
-        commits: [
-          {
-            ...BASIC_COMMIT,
-            categories: [":rocket: New Feature"],
-          },
+        pullRequests: [
+          // {
+          //   ...BASIC_COMMIT,
+          //   categories: [":rocket: New Feature"],
+          // },
         ],
       };
       const options = {
@@ -222,13 +233,13 @@ describe("MarkdownRenderer", () => {
       const release: Release = {
         name: "v1.0.0",
         date: "2021-05-02",
-        commits: [
-          {
-            ...BASIC_COMMIT,
-            categories: [":rocket: New Feature"],
-          },
+        pullRequests: [
+          // {
+          //   ...BASIC_COMMIT,
+          //   categories: [":rocket: New Feature"],
+          // },
         ],
-        contributors: [{ name: "Henry", login: "hzoo", html_url: "http://hzoo.com" }],
+        contributors: [{ login: "hzoo", url: "http://hzoo.com", avatarUrl: "http://hzoo.com/avatar" }],
       };
       const options = {
         categories: [":rocket: New Feature"],
@@ -241,11 +252,11 @@ describe("MarkdownRenderer", () => {
       const release: Release = {
         name: "v1.0.0",
         date: "2021-05-02",
-        commits: [
-          {
-            ...BASIC_COMMIT,
-            categories: [":rocket: New Feature"],
-          },
+        pullRequests: [
+          // {
+          //   ...BASIC_COMMIT,
+          //   categories: [":rocket: New Feature"],
+          // },
         ],
         contributors: [],
       };

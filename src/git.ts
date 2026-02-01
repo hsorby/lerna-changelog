@@ -24,6 +24,11 @@ export function lastTag(): string {
   return execaSync("git", ["describe", "--abbrev=0", "--tags"]).stdout;
 }
 
+export function getTagDate(tag: string): string {
+  // %as = absolute short date (YYYY-MM-DD)
+  return execaSync("git", ["log", "-1", `--format=%as`, tag]).stdout.trim();
+}
+
 export interface CommitListItem {
   sha: string;
   refName: string;

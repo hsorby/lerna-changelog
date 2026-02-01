@@ -1,4 +1,4 @@
-import { GitHubUserResponse } from "./github-api.js";
+import { GitHubAuthorResponse, GitHubUserResponse } from "./github-api.js";
 import { CommitInfo, Release } from "./interfaces.js";
 
 const UNRELEASED_TAG = "___unreleased___";
@@ -6,7 +6,7 @@ const COMMIT_FIX_REGEX = /(fix|close|resolve)(e?s|e?d)? [T#](\d+)/i;
 
 interface CategoryInfo {
   name: string | undefined;
-  commits: CommitInfo[];
+  pullRequests: any[];
 }
 
 interface Options {
@@ -32,37 +32,38 @@ export default class MarkdownRenderer {
 
   public renderRelease(release: Release): string | undefined {
     // Group commits in release by category
-    const categories = this.groupByCategory(release.commits);
-    const categoriesWithCommits = categories.filter(category => category.commits.length > 0);
-
-    // Skip this iteration if there are no commits available for the release
-    if (categoriesWithCommits.length === 0) return "";
-
+    const categories = this.groupByCategory(release.pullRequests);
     const releaseTitle = release.name === UNRELEASED_TAG ? this.options.unreleasedName : release.name;
+    const releasePreText = release.name === UNRELEASED_TAG ? `###### Includes changes up to ` : `###### Released on `;
 
-    let markdown = `## ${releaseTitle} (${release.date})`;
+    let markdown = `## ${releaseTitle}\n${releasePreText}${release.date}`;
 
-    for (const category of categoriesWithCommits) {
+    for (const category of categories) {
+      if (category.pullRequests.length === 0) continue;
       markdown += `\n\n#### ${category.name}\n`;
 
-      if (this.hasPackages(category.commits)) {
-        markdown += this.renderContributionsByPackage(category.commits);
-      } else {
-        markdown += this.renderContributionList(category.commits);
-      }
-    }
+      markdown += this.renderMergedPullRequests(category.pullRequests);
 
-    if (release.contributors?.length) {
-      markdown += `\n\n${this.renderContributorList(release.contributors)}`;
+      if (release.contributors?.length) {
+        markdown += `\n\n${this.renderContributorList(release.contributors)}`;
+      }
     }
 
     return markdown;
   }
 
-  public renderContributionsByPackage(commits: CommitInfo[]) {
+  public renderMergedPullRequests(pullRequests: any[]) {
+    let markdown = "";
+    for (const pr of pullRequests) {
+      markdown += `* ${pr.title} by [@${pr.author.login}](${pr.author.url}) in [#${pr.number}](${pr.url})\n`;
+    }
+    return markdown;
+  }
+
+  public renderContributionsByPackage(pullRequests: any[]) {
     // Group commits in category by package
-    const commitsByPackage: { [id: string]: CommitInfo[] } = {};
-    for (const commit of commits) {
+    const commitsByPackage: { [id: string]: any[] } = {};
+    for (const commit of pullRequests) {
       // Array of unique packages.
       const changedPackages = commit.packages || [];
 
@@ -114,32 +115,77 @@ export default class MarkdownRenderer {
     }
   }
 
-  public renderContributorList(contributors: GitHubUserResponse[]) {
-    const renderedContributors = contributors.map(contributor => `- ${this.renderContributor(contributor)}`).sort();
+  public renderContributorList(contributors: GitHubAuthorResponse[]) {
+    const list = contributors
+      .map(user => {
+        const avatarUrl = `${user.avatarUrl}&s=100`;
+        // We use <sub> for the name and <br> to stack them
+        // Non-breaking spaces (&nbsp;) help prevent the name from wrapping awkwardly
+        return `
+<kbd>
+  <a href="${user.url}">
+    <img src="${avatarUrl}" width="50" height="50"><br>
+    <sub>@${user.login}</sub>
+  </a>
+</kbd>`.trim();
+      })
+      .join(" ");
 
-    return `#### Committers: ${contributors.length}\n${renderedContributors.join("\n")}`;
+    return `#### Contributors\n\n${list}\n`;
   }
 
-  public renderContributor(contributor: GitHubUserResponse): string {
-    const userNameAndLink = `[@${contributor.login}](${contributor.html_url})`;
-    if (contributor.name) {
-      return `${contributor.name} (${userNameAndLink})`;
-    } else {
-      return userNameAndLink;
+  public renderContributorList2(contributors: GitHubAuthorResponse[]) {
+    if (contributors.length === 0) return "";
+
+    const COLUMNS_PER_ROW = 6;
+    let markdown = "#### Contributors\n\n";
+
+    // Split contributors into rows
+    for (let i = 0; i < contributors.length; i += COLUMNS_PER_ROW) {
+      const chunk = contributors.slice(i, i + COLUMNS_PER_ROW);
+
+      // Row 1: The Avatars
+      markdown +=
+        "| " +
+        chunk
+          .map(user => {
+            const avatarUrl = `${user.avatarUrl}&s=100`; // Request 100px for clarity
+            return `<a href="${user.url}"><img src="${avatarUrl}" width="50" height="50" alt="@${user.login}"></a>`;
+          })
+          .join(" | ") +
+        " |\n";
+
+      // Row 2: The Alignment/Dividers
+      markdown += "| " + chunk.map(() => ":---:").join(" | ") + " |\n";
+
+      // Row 3: The Logins (Captions)
+      markdown +=
+        "| " +
+        chunk
+          .map(user => {
+            return `[@${user.login}](${user.url})`;
+          })
+          .join(" | ") +
+        " |\n\n";
     }
+
+    return markdown;
   }
 
-  private hasPackages(commits: CommitInfo[]) {
-    return commits.some(commit => commit.packages !== undefined && commit.packages.length > 0);
+  public renderContributor(contributor: GitHubAuthorResponse): string {
+    return `![avatar](${contributor.avatarUrl}) [@${contributor.login}](${contributor.url})`;
   }
 
-  private groupByCategory(allCommits: CommitInfo[]): CategoryInfo[] {
+  private hasPackages(pullRequests: any[]) {
+    return pullRequests.some(pr => pr.packages !== undefined && pr.packages.length > 0);
+  }
+
+  private groupByCategory(allPullRequests: any[]): CategoryInfo[] {
     return this.options.categories.map(name => {
       // Keep only the commits that have a matching label with the one
       // provided in the lerna.json config.
-      let commits = allCommits.filter(commit => commit.categories && commit.categories.indexOf(name) !== -1);
-
-      return { name, commits };
+      let pullRequests = allPullRequests.filter(pr => pr.categories && pr.categories.indexOf(name) !== -1);
+      return { name, pullRequests };
     });
   }
 }
