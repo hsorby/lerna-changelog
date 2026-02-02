@@ -11,9 +11,17 @@
   },
   "license": "MIT",
   "author": "Bo Borgerson <gigabo@gmail.com>",
+  "files": [
+    "bin",
+    "lib",
+    "package.json",
+    "README.md"
+  ],
   "type": "module",
   "main": "lib/index.js",
-  "bin": "bin/cli.js",
+  "bin": {
+    "gen-changelog": "bin/cli.js"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hsorby/lerna-changelog.git"
