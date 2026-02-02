@@ -97,10 +97,10 @@ export default class GithubAPI {
     const response: any = await this._post(GRAPHQL_URL, query);
 
     const commitData = response.data.repository.object;
-    const pr = commitData.associatedPullRequests.nodes[0];
+    const pr = commitData?.associatedPullRequests.nodes[0];
 
     return {
-      isMergeCommit: commitData.parents.totalCount > 1,
+      isMergeCommit: commitData?.parents.totalCount > 1,
       pr: pr || null,
       merged: pr ? pr.merged : false,
       baseRefName: pr ? pr.baseRefName : null,
