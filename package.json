@@ -1,6 +1,6 @@
 {
   "name": "@hsorby/changelog",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Generate a changelog for pull requests referencing issues in a repo workflow.",
   "keywords": [
     "changelog"
