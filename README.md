@@ -1,151 +1,96 @@
-lerna-changelog
-==============================================================================
+# @hsorby/changelog
 
-[![TravisCI Build Status][travis-badge]][travis-badge-url]
-[![Latest NPM release][npm-badge]][npm-badge-url]
+A streamlined changelog generator that maps GitHub **Issue Types** to categorized release notes. Unlike standard generators that rely on PR labels, this tool looks at the issues linked to your Pull Requests to determine where changes belong.
 
-[npm-badge]: https://img.shields.io/npm/v/lerna-changelog.svg
-[npm-badge-url]: https://www.npmjs.com/package/lerna-changelog
-[travis-badge]: https://img.shields.io/travis/lerna/lerna-changelog/master.svg
-[travis-badge-url]: https://travis-ci.org/lerna/lerna-changelog
-
-PR-based changelog generator with monorepo support
-
-
-Usage
-------------------------------------------------------------------------------
+## Usage
 
 ```bash
-npx lerna-changelog
-```
+# Run via npx
+npx @hsorby/changelog --from v1.0.0
 
-```md
-## Unreleased (2018-05-24)
-
-#### :bug: Bug Fix
-* [#198](https://github.com/my-org/my-repo/pull/198) Avoid an infinite loop ([@helpful-hacker](https://github.com/helpful-hacker))
-
-#### :house: Internal
-* [#183](https://github.com/my-org/my-repo/pull/183) Standardize error messages ([@careful-coder](https://github.com/careful-coder))
-
-#### Commiters: 2
-- Helpful Hacker ([@helpful-hacker](https://github.com/helpful-hacker))
-- [@careful-coder](https://github.com/careful-coder)
-```
-
-By default `lerna-changelog` will show all pull requests that have been merged
-since the latest tagged commit in the repository. That is however only true for
-pull requests with certain labels applied. The labels that are supported by
-default are:
-
-- `breaking` (:boom: Breaking Change)
-- `enhancement` (:rocket: Enhancement)
-- `bug` (:bug: Bug Fix)
-- `documentation` (:memo: Documentation)
-- `internal` (:house: Internal)
-
-You can also use the `--from` and `--to` options to view a different
-range of pull requests:
-
-```bash
-npx lerna-changelog --from=v1.0.0 --to=v2.0.0
-```
-
-### Monorepo support
-
-If you have a packages folder and your projects in subfolders of that folder `lerna-changelog` will detect it and include the package names in the changelog for the relevant changes.
-
-### GitHub Token
-
-Since `lerna-changelog` interacts with the GitHub API you may run into rate
-limiting issues which can be resolved by supplying a "personal access token":
+# Or via yarn
+yarn lerna-changelog --from v1.0.0
 
 ```
-export GITHUB_AUTH="..."
-```
 
-You'll need a [personal access token](https://github.com/settings/tokens)
-for the GitHub API with the `repo` scope for private repositories or just
-`public_repo` scope for public repositories.
+### How it works
 
+1. **Finds Commits:** Identifies all commits between your specified tags on the target ref, default main.
+2. **Links PRs:** Maps those commits back to their parent Pull Requests.
+3. **Inspects Issues:** Looks at the **Issues** linked to those PRs.
+4. **Categorizes:** Matches the `issueType` of the linked issue against your configuration to place the change in the correct section (e.g., Bug Fix, Feature).
 
-Configuration
-------------------------------------------------------------------------------
+---
 
-You can configure `lerna-changelog` in various ways. The easiest way is by
-adding a `changelog` key to the `package.json` file of your project:
+## Configuration
 
-```json5
+Add a `changelog` key to your `package.json`. Even though the key is still called `labels`, it now maps to the **Type** field found in your GitHub Issues (this should change in the future).
+
+```json
 {
-  // ...
   "changelog": {
+    "repo": "hsorby/my-project",
     "labels": {
-      "feature": "New Feature",
-      "bug": "Bug Fix"
-    }
-  }
-}
-```
-
-The supported options are:
-
-- `repo`: Your "org/repo" on GitHub
-  (automatically inferred from the `package.json` file)
-
-- `nextVersion`: Title for unreleased commits
-  (e.g. `Unreleased`)
-
-- `labels`: GitHub PR labels mapped to changelog section headers
-
-- `wildcardLabel`: A label to identify commits that don't have a GitHub PR label 
-  which matches a value in `labels`. (e.g. `unlabeled`) By default, this has no value. [Read more about this option](#wildcardlabel).
-
-- `ignoreCommitters`: List of committers to ignore (exact or partial match).
-  Useful for example to ignore commits from bots.
-
-- `cacheDir`: Path to a GitHub API response cache to avoid throttling
-  (e.g. `.changelog`)
-
-### wildcardLabel
-
-For some projects, it may be beneficial to list PRs in the changelog that don't 
-have a matching label defined in the configuration `labels`. Listing these PRs also allows you to review the changelog and identify any PRs that should be re-labeled on GitHub. For example, forgetting to label a breaking change.
-
-```json5
-{
-  // ...
-  "changelog": {
-    "wildcardLabel": "unlabeled"
-  }
-}
-```
-
-A default changlog heading of `:present: Additional updates` is set when a value for `wildcardLabel` is in the configuration.
-
-```md
-## Unreleased (2018-05-24)
-
-#### 🎁 Additional updates
-* [#514](https://github.com/my-org/my-repo/pull/514) Setting to mute video ([@diligent-developer](https://github.com/diligent-developer))
-```
-
-You can overwrite the default heading by including the `wildcardLabel` value in the configuration's `labels` object. For example:
-
-```json5
-{
-  // ...
-  "changelog": {
-    "labels": {
-      "feature": "New Feature",
-      "bug": "Bug Fix",
-      "unlabeled": "Unlabeled PRs"
+      "feature": "🚀 New Features",
+      "bug": "🐛 Bug Fixes",
+      "documentation": "📝 Documentation",
+      "internal": "🏠 Internal Task"
     },
-    "wildcardLabel": "unlabeled"
+    "ignoreCommitters": [
+      "dependabot",
+      "github-actions"
+    ]
   }
 }
+
 ```
 
-License
-------------------------------------------------------------------------------
+The repo key is optional, the package will try and determine the repository from the repo key in the package.json itself.
 
-`lerna-changelog` is released under the [MIT License](LICENSE).
+### Options
+
+| Option | Description |
+| --- | --- |
+| `repo` | Your `org/repo` (Inferred from package.json if omitted). |
+| `nextVersion` | The header for the latest changes (e.g., `Latest Changes`). |
+| `labels` | **Maps Issue Types** to Section Headers. |
+| `ignoreCommitters` | Array of usernames to exclude from the contributor list. |
+
+---
+
+## Enhanced Features
+
+### 📸 Clean Contributor Grids
+
+No more messy inline lists. This fork renders a clean, centered grid of contributors with high-resolution avatars:
+
+| <img src="[https://github.com/hsorby.png](https://www.google.com/search?q=https://github.com/hsorby.png)" width="50"> | <img src="[https://github.com/octocat.png](https://www.google.com/search?q=https://github.com/octocat.png)" width="50"> |
+| --- | --- |
+| [@hsorby](https://www.google.com/search?q=...) | [@octocat](https://www.google.com/search?q=...) |
+
+### 🌳 Branch Awareness
+
+The generator uses a target reference to ensure that only commits belonging to your primary branch are included, preventing "noise" from unmerged or side-feature branches.
+
+### ⚡ Smart Caching
+
+Includes an internal caching layer to prevent redundant GitHub API calls when multiple commits belong to the same Pull Request.
+
+---
+
+## GitHub Token
+
+To avoid API rate limiting, export a personal access token:
+
+```bash
+export GITHUB_AUTH="your_token_here"
+
+```
+
+Requires `public_repo` scope for public repositories.
+
+---
+
+## License
+
+[MIT ©](https://mit-license.org/) 
