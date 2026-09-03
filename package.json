@@ -95,17 +95,13 @@
         "roots": [
           "src"
         ],
-        "preset": "ts-jest"
-      },
-      {
-        "displayName": "lint",
-        "runner": "jest-runner-eslint",
-        "moduleFileExtensions": [
-          "ts"
+        "preset": "ts-jest/presets/default-esm",
+        "extensionsToTreatAsEsm": [
+          ".ts"
         ],
-        "testMatch": [
-          "<rootDir>/src/**/*.ts"
-        ]
+        "moduleNameMapper": {
+          "^(\\.{1,2}/.*)\\.js$": "$1"
+        }
       }
     ]
   },

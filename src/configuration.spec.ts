@@ -2,8 +2,8 @@ import * as os from "os";
 import * as fs from "fs";
 import * as path from "path";
 
-import { findRepoFromPkg, fromPath } from "./configuration.js";
-import ConfigurationError from "./configuration-error.js";
+import { findRepoFromPkg, fromPath } from "./configuration";
+import ConfigurationError from "./configuration-error";
 
 describe("Configuration", function () {
   describe("fromPath", function () {
