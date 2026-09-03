@@ -33,12 +33,15 @@ export default class Changelog {
 
   public async createMarkdown(options: Options = {}) {
     const atLastTag = await Git.atLastTag();
+    
     let defaultFromTag = await Git.precedingLastTag();
     let defaultToTag = await Git.lastTag();
+
     if (!atLastTag) {
       defaultFromTag = defaultToTag;
       defaultToTag = "HEAD";
     }
+
     const from = options.tagFrom || defaultFromTag;
     const to = options.tagTo || defaultToTag;
 
