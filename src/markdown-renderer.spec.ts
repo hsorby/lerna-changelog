@@ -189,7 +189,7 @@ describe("MarkdownRenderer", () => {
         date: getToday(),
         pullRequests: [
           // {
-            // categories: [":rocket: New Feature"],
+          // categories: [":rocket: New Feature"],
           // },
         ],
       };

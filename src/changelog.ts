@@ -33,7 +33,7 @@ export default class Changelog {
 
   public async createMarkdown(options: Options = {}) {
     const atLastTag = await Git.atLastTag();
-    
+
     let defaultFromTag = await Git.precedingLastTag();
     let defaultToTag = await Git.lastTag();
 

@@ -94,14 +94,14 @@ export function fromPath(rootPath: string, options: ConfigLoaderOptions = {}): C
 function fromLernaConfig(rootPath: string): Partial<Configuration> | undefined {
   const lernaPath = path.join(rootPath, "lerna.json");
   if (fs.existsSync(lernaPath)) {
-    return JSON.parse(fs.readFileSync(lernaPath, 'utf8')).changelog;
+    return JSON.parse(fs.readFileSync(lernaPath, "utf8")).changelog;
   }
 }
 
 function fromPackageConfig(rootPath: string): Partial<Configuration> | undefined {
   const pkgPath = path.join(rootPath, "package.json");
   if (fs.existsSync(pkgPath)) {
-    return JSON.parse(fs.readFileSync(pkgPath, 'utf8')).changelog;
+    return JSON.parse(fs.readFileSync(pkgPath, "utf8")).changelog;
   }
 }
 
@@ -111,7 +111,7 @@ function findRepo(rootPath: string): string | undefined {
     return;
   }
 
-  const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+  const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf8"));
   if (!pkg.repository) {
     return;
   }
@@ -123,8 +123,8 @@ function findNextVersion(rootPath: string): string | undefined {
   const pkgPath = path.join(rootPath, "package.json");
   const lernaPath = path.join(rootPath, "lerna.json");
 
-  const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : {};
-  const lerna = fs.existsSync(lernaPath) ? JSON.parse(fs.readFileSync(lernaPath, 'utf8')) : {};
+  const pkg = fs.existsSync(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, "utf8")) : {};
+  const lerna = fs.existsSync(lernaPath) ? JSON.parse(fs.readFileSync(lernaPath, "utf8")) : {};
 
   return pkg.version ? `v${pkg.version}` : lerna.version ? `v${lerna.version}` : undefined;
 }

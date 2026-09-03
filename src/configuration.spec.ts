@@ -18,9 +18,10 @@ describe("Configuration", function () {
     });
 
     it("reads the configuration from 'lerna.json'", function () {
-      fs.writeFileSync(path.join(tmpDir, "lerna.json"), JSON.stringify({
-        changelog: { repo: "foo/bar", nextVersion: "next" },
-      }));
+      fs.writeFileSync(
+        path.join(tmpDir, "lerna.json"),
+        JSON.stringify({ changelog: { repo: "foo/bar", nextVersion: "next" } })
+      );
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("next");
@@ -28,9 +29,10 @@ describe("Configuration", function () {
     });
 
     it("reads the configuration from 'package.json'", function () {
-      fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
-        changelog: { repo: "foo/bar", nextVersion: "next" },
-      }));
+      fs.writeFileSync(
+        path.join(tmpDir, "package.json"),
+        JSON.stringify({ changelog: { repo: "foo/bar", nextVersion: "next" } })
+      );
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("next");
@@ -38,15 +40,21 @@ describe("Configuration", function () {
     });
 
     it("prefers 'package.json' over 'lerna.json'", function () {
-      fs.writeFileSync(path.join(tmpDir, "lerna.json"), JSON.stringify({
-        version: "1.0.0-lerna.0",
-        changelog: { repo: "foo/lerna", nextVersionFromMetadata: true },
-      }));
+      fs.writeFileSync(
+        path.join(tmpDir, "lerna.json"),
+        JSON.stringify({
+          version: "1.0.0-lerna.0",
+          changelog: { repo: "foo/lerna", nextVersionFromMetadata: true },
+        })
+      );
 
-      fs.writeFileSync(path.join(tmpDir, "package.json"), JSON.stringify({
-        version: "1.0.0-package.0",
-        changelog: { repo: "foo/package", nextVersionFromMetadata: true },
-      }));
+      fs.writeFileSync(
+        path.join(tmpDir, "package.json"),
+        JSON.stringify({
+          version: "1.0.0-package.0",
+          changelog: { repo: "foo/package", nextVersionFromMetadata: true },
+        })
+      );
 
       const result = fromPath(tmpDir);
       expect(result.nextVersion).toEqual("v1.0.0-package.0");
